@@ -1239,6 +1239,7 @@ function welcomeHTML(o) {
 
 
 /* app */
+window.GLP_SHORTCUT = "https://www.icloud.com/shortcuts/a078743299d94aacbf5b31eeddbe6bc8";
 /* GLP-1 Tracker – TrueHaven Studios: shots, site rotation, weight trend, protein & water, side effects by shot day, doctor summary */
 const KG = 0.45359237;
 const SITES = [["la", "Left belly", 38, 52], ["ra", "Right belly", 62, 52], ["lt", "Left thigh", 42, 74], ["rt", "Right thigh", 58, 74], ["lu", "Left arm", 29, 40], ["ru", "Right arm", 71, 40]];
@@ -1252,7 +1253,7 @@ const APP = {
   fab: ["logShot", "Log a shot"],
   blank() {
     const t = today();
-    return { v: 1, setup: false, created: t, settings: { name: "", theme: "Sky", dark: "auto", weekStart: 1, med: "Semaglutide", every: 7, units: "lb", goal: 0, start: 0, height: 0, protein: 90, water: 2000, perPen: 4, dosesLeft: 0, shortcut: "Life Sync" },
+    return { v: 1, setup: false, created: t, settings: { name: "", theme: "Sky", dark: "auto", weekStart: 1, med: "Semaglutide", every: 7, units: "lb", goal: 0, start: 0, height: 0, protein: 90, water: 2000, perPen: 4, dosesLeft: 0, shortcut: "GLP sync" },
       shots: [], weights: [], days: {}, questions: "", lastBackup: "", lastSync: 0 };
   },
   migrate(o) {
@@ -1699,13 +1700,13 @@ function readSync() {
   let raw = q.includes("sync=") ? q.slice(q.indexOf("sync=") + 5) : hs; if (!raw) return;
   history.replaceState(null, "", location.pathname + "#/today"); if (DEMO) return setTimeout(() => toast("Apple Health works in the full app."), 400);
   try { raw = decodeURIComponent(raw.replace(/\+/g, " ")); } catch (e) { }
-  const got = [], t = today();
+  const got = [], t = today(), keys = raw.split(/[&\n;|]/).map(p => p.split("=")[0].trim().toLowerCase()).filter(Boolean);
   raw.split(/[&\n;|]/).forEach(p => { const i = p.indexOf("="); if (i < 0) return; const k = p.slice(0, i).trim().toLowerCase(), r = p.slice(i + 1).trim(), low = r.toLowerCase(), m = r.match(/\d+(?:[.,]\d+)?/); if (!m) return; let v = parseFloat(m[0].replace(",", "."));
     if (k === "wt") { if (/lb|pfund/.test(low) || (!/kg/.test(low) && S.settings.units === "lb" && v > 90)) v *= KG; if (v > 25 && v < 400) { S.weights = S.weights.filter(w => w.date !== t); S.weights.push({ date: t, v: Math.round(v * 100) / 100, src: "h" }); got.push(fw(v)); } }
     if (k === "pr" && v > 0) { day().protein = Math.round(v); got.push(Math.round(v) + " g protein"); }
     if (k === "wa" && v > 0) { if (/oz/.test(low)) v *= 29.57; else if (v < 20) v *= 1000; day().water = Math.round(v); got.push((v / 1000).toFixed(1) + " l water"); } });
   S.weights.sort((a, b) => a.date.localeCompare(b.date)); S.lastSync = now(); save(); render();
-  setTimeout(() => toast(got.length ? `${ic("heart")} From Apple Health: ${got.join(" · ")}` : "The shortcut ran, but sent no numbers."), 350);
+  setTimeout(() => toast(got.length ? `${ic("heart")} From Apple Health: ${got.join(" · ")}` : keys.length ? `The shortcut ran, but sent no weight. It sent: ${esc(keys.slice(0, 6).join(", "))} – it needs <b>wt=</b> (weight). Is there a weight in the Health app?` : "The shortcut ran, but sent no numbers. Check that it may read Health (Settings › Health › Data Access)."), 350);
 }
 
 // ------------------------------------------------------------ pieces
@@ -1829,7 +1830,8 @@ function vSettings() {
     <div class="grid g2" style="gap:10px">${field("Doses in one pen", `<input class="inp" inputmode="numeric" data-set="perPen" value="${st.perPen || ""}">`)}${field("Doses left", `<input class="inp" inputmode="numeric" data-set="dosesLeft" value="${st.dosesLeft || ""}">`, "Goes down by one with each shot.")}</div>`;
   const body = `${field("Units", `<select class="inp" data-set="units">${opt("lb", "Pounds (lb)", st.units)}${opt("kg", "Kilograms (kg)", st.units)}</select>`)}<div class="grid g2" style="gap:10px">${field("Starting weight", `<input class="inp" inputmode="decimal" data-set="start" value="${st.start ? +toU(st.start).toFixed(1) : ""}">`)}${field("Goal weight", `<input class="inp" inputmode="decimal" data-set="goal" value="${st.goal ? +toU(st.goal).toFixed(1) : ""}">`)}</div>
     <div class="grid g2" style="gap:10px">${field("Protein goal (g)", `<input class="inp" inputmode="numeric" data-set="protein" value="${st.protein}">`)}${field("Water goal (ml)", `<input class="inp" inputmode="numeric" data-set="water" value="${st.water}">`)}</div>${field("Your name (optional)", `<input class="inp" data-set="name" value="${esc(st.name)}">`)}`;
-  const health = `<p class="small" style="margin-top:0">Your weight (and protein & water, if you log them in the Health app) can come in by themselves. The free TrueHaven “Life Sync” shortcut reads them from the Health app – nothing goes through a server.</p>${field("Shortcut name", `<input class="inp" data-set="shortcut" value="${esc(st.shortcut)}">`)}`;
+  const health = `<p class="small" style="margin-top:0">Your weight (and protein & water, if you log them in the Health app) can come in by themselves. The free TrueHaven “GLP sync” shortcut reads them from the Health app – nothing goes through a server.</p>
+    <ol class="small" style="padding-left:18px;margin:0 0 12px"><li><a href="${esc(window.GLP_SHORTCUT)}" target="_blank" rel="noopener">Add the GLP sync shortcut</a> on your iPhone and allow it to read Health.</li><li>Tap <b>Sync Apple Health</b> on Today – or run it from an automation every morning.</li><li>It sends your latest <b>weight</b>, plus today's <b>protein</b> and <b>water</b> if you log them in Health.</li></ol>${field("Shortcut name", `<input class="inp" data-set="shortcut" value="${esc(st.shortcut)}">`)}`;
   return head("Make it yours", "Settings", "", "Medication, goals, colours, devices and data.") + `<div class="grid g2 start">${card("Your medication", med)}${card("Body & goals", body, { b: true })}</div><div class="grid g2 start mt">${card(`${ic("heart")} Apple Health`, health)}${card("Look", themePicker(), { b: true })}</div>` + dataCards();
 }
 
@@ -1888,7 +1890,7 @@ APP.acts = {
   delW: d => { commit(() => { S.weights = S.weights.filter(w => w.date !== d.d); }, "remove weigh-in"); },
   plus: d => { commit(() => { const x = day(); const k = d.k === "water" ? "water" : "protein"; x[k] = Math.max(0, (x[k] || 0) + +d.v); }); },
   se: d => { commit(() => { const x = day(); x.se = x.se || {}; x.se[d.k] = ((x.se[d.k] || 0) + 1) % 4; }); },
-  health: () => { if (DEMO) return toast("Apple Health works in the full app on iPhone."); location.href = "shortcuts://run-shortcut?name=" + encodeURIComponent(S.settings.shortcut || "Life Sync"); },
+  health: () => { if (DEMO) return toast("Apple Health works in the full app on iPhone."); location.href = "shortcuts://run-shortcut?name=" + encodeURIComponent(S.settings.shortcut || "GLP sync"); },
   ics: () => { if (DEMO) return toast("Calendar reminders work in the full app."); icsFile(); toast("Open the file to add a repeating shot-day reminder to your calendar."); },
   range: d => { VS.range = +d.v; render(); }, print: () => window.print(),
   obDone: () => { obCollect(); if (OBS.w) S.weights.push({ date: today(), v: Math.round(OBS.w * 100) / 100 }); if (E.isDate(OBS.last)) S.shots.push({ id: uid(), date: OBS.last, dose: OBS.dose > 0 ? OBS.dose : 0, site: "", note: "" });
